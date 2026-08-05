@@ -15,16 +15,19 @@ const https = require('https');
 
 const SB_URL = 'https://cslrbpptdcehxbljgvvm.supabase.co';
 const SB_ANON = 'sb_publishable_b-DZiQOIQ3N4u3v7yYN0Ow_eKwj4nyp';
+// Service key hard-coded (private repo, internal tool). Enables the live
+// on-site truck count (read + delete reconcile). Rotate in Supabase and
+// rebuild if this ever needs changing.
+const SB_SERVICE = 'sb_secret_KHP2cBtzJzwcOqzrTSO8yg_NjIBvSiK';
 
-let FOLDER = '', SITE = '', SERVICE = '';
+let FOLDER = '', SITE = '';
 
-function configure(folder, site, serviceKey){
-  FOLDER  = String(folder || '').trim();
-  SITE    = String(site   || '').trim();
-  SERVICE = String(serviceKey || '').trim();
+function configure(folder, site){
+  FOLDER = String(folder || '').trim();
+  SITE   = String(site   || '').trim();
 }
 function ready(){ return !!(FOLDER && SITE); }
-function key(){ return SERVICE || SB_ANON; }          // service key bypasses RLS (read/delete)
+function key(){ return SB_SERVICE || SB_ANON; }       // service key bypasses RLS (read/delete)
 
 function isSyncArtifact(name){
   const n = String(name || '').toLowerCase();
@@ -106,29 +109,22 @@ async function syncNow(){
   const txRows = readKindFiles('txs').map(x=>mapTx(x.data)).filter(Boolean);
   const txRes = await upsert(txRows);
 
-  // 2) on-site trucks (needs service key for the delete-reconcile)
+  // 2) on-site trucks — upsert current, delete those that have left
   let onsite = 0, pendMsg = '';
   const pendFiles = readKindFiles('pend');
   const pendRows = pendFiles.map(x=>mapPend(x.name, x.data)).filter(Boolean);
   onsite = pendRows.length;
-  if(SERVICE){
-    await upsert(pendRows);
-    // reconcile: delete open pend rows in cloud whose truck has left
-    const currentExt = new Set(pendRows.map(r=>r.ext_id));
-    const sel = await api('GET',
-      `transactions?select=ext_id&site=eq.${encodeURIComponent(SITE)}&status=eq.open`, null);
-    if(sel.ok){
-      let cloud=[]; try{ cloud=JSON.parse(sel.body||'[]'); }catch(_){}
-      const stale = cloud.map(r=>r.ext_id)
-        .filter(e => e && e.includes(':pend:') && !currentExt.has(e));
-      for(const e of stale){
-        await api('DELETE', `transactions?ext_id=eq.${encodeURIComponent(e)}`, null,
-          { 'Prefer':'return=minimal' });
-      }
-    } else { pendMsg = ' (on-site read failed — check service key)'; }
-  } else {
-    pendMsg = ' · on-site count needs the service key';
-  }
+  await upsert(pendRows);
+  const currentExt = new Set(pendRows.map(r=>r.ext_id));
+  const sel = await api('GET',
+    `transactions?select=ext_id&site=eq.${encodeURIComponent(SITE)}&status=eq.open`, null);
+  if(sel.ok){
+    let cloud=[]; try{ cloud=JSON.parse(sel.body||'[]'); }catch(_){}
+    const stale = cloud.map(r=>r.ext_id).filter(e => e && e.includes(':pend:') && !currentExt.has(e));
+    for(const e of stale){
+      await api('DELETE', `transactions?ext_id=eq.${encodeURIComponent(e)}`, null, { 'Prefer':'return=minimal' });
+    }
+  } else { pendMsg = ' (on-site sync issue)'; }
 
   if(!txRes.ok) return { ok:false, reason:txRes.reason, count:txRes.count, onsite };
   return { ok:true, count:txRes.count, total:txRows.length, onsite, note: pendMsg };

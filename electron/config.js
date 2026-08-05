@@ -7,8 +7,8 @@ function file(){ return path.join(app.getPath('userData'), 'iss-cloud-sync.json'
 
 function load(){
   try { const c = JSON.parse(fs.readFileSync(file(), 'utf8'));
-        return Object.assign({ folder:'C:\\weighbridgeshare', site:'', serviceKey:'' }, c); }
-  catch(_){ return { folder: 'C:\\weighbridgeshare', site: '', serviceKey: '' }; }
+        return Object.assign({ folder:'C:\\weighbridgeshare', site:'' }, c); }
+  catch(_){ return { folder: 'C:\\weighbridgeshare', site: '' }; }
 }
 function save(cfg){
   try { fs.mkdirSync(path.dirname(file()), { recursive: true });
