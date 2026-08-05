@@ -1,0 +1,69 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ISS Cloud Sync</title>
+<style>
+  :root{--blue:#2183C2;--gold:#C9A84C;--bg:#0e1319;--card:#151d27;--line:#26313d;--text:#e7edf3;--muted:#8aa0b4;--green:#37c98a;--red:#f4667a}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text);padding:18px}
+  .brand{font-weight:900;font-size:20px;letter-spacing:1px;color:var(--blue)}
+  .sub{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin-bottom:14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+  label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px}
+  input{width:100%;padding:9px;border-radius:8px;border:1px solid var(--line);background:#0b1219;color:var(--text);font-size:14px}
+  .row{display:flex;gap:8px;align-items:end}
+  button{padding:9px 12px;border:0;border-radius:8px;background:var(--blue);color:#fff;font-weight:700;cursor:pointer}
+  button.ghost{background:none;border:1px solid var(--line);color:var(--muted)}
+  .path{font-size:12px;color:var(--text);word-break:break-all;background:#0b1219;border:1px solid var(--line);border-radius:8px;padding:9px}
+  .status{display:flex;align-items:center;gap:8px;font-size:13px}
+  .dot{width:10px;height:10px;border-radius:50%;background:var(--muted)}
+  .dot.ok{background:var(--green)} .dot.bad{background:var(--red)}
+  .muted{color:var(--muted);font-size:11px;margin-top:6px}
+</style></head>
+<body>
+  <div class="brand">ISS Cloud Sync</div>
+  <div class="sub">Weigh Forward</div>
+
+  <div class="card">
+    <label>Shared folder (read-only)</label>
+    <div class="path" id="folder">—</div>
+    <div class="row" style="margin-top:8px">
+      <button class="ghost" onclick="pickFolder()">Change folder…</button>
+    </div>
+    <div class="muted">This app only reads from this folder — it never changes anything in it.</div>
+  </div>
+
+  <div class="card">
+    <label>Site name (must match the dashboard, e.g. Hillside)</label>
+    <div class="row">
+      <input id="site" placeholder="Hillside" autocapitalize="off" spellcheck="false">
+      <button onclick="saveSite()">Save</button>
+    </div>
+    <div class="muted">This links this folder's tickets to the correct client in ISS Remote Monitor.</div>
+  </div>
+
+  <div class="card">
+    <div class="status"><span class="dot" id="dot"></span><span id="msg">—</span></div>
+    <div class="muted">Last sync: <span id="when">—</span> · auto-syncs every 30s</div>
+    <div class="row" style="margin-top:10px">
+      <button onclick="syncNow()">Sync now</button>
+    </div>
+  </div>
+
+<script>
+  const $=id=>document.getElementById(id);
+  function render(s){
+    if(!s) return;
+    $('folder').textContent = s.folder || '—';
+    if(document.activeElement!==$('site')) $('site').value = s.site || '';
+    $('when').textContent = s.when || '—';
+    $('msg').textContent = s.msg || '—';
+    $('dot').className = 'dot ' + (s.ok===true?'ok':s.ok===false?'bad':'');
+  }
+  async function pickFolder(){ render(await window.iss.pickFolder()); }
+  async function saveSite(){ render(await window.iss.setSite($('site').value)); }
+  async function syncNow(){ $('msg').textContent='Syncing…'; render(await window.iss.syncNow()); }
+  window.iss.onStatus(render);
+  window.iss.getConfig().then(render);
+</script>
+</body></html>
