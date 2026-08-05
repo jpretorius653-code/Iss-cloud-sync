@@ -13,7 +13,7 @@ let watchTimer = null, watcher = null;
 if(!app.requestSingleInstanceLock()){ app.quit(); }
 app.on('second-instance', ()=>{ createWindow(); });
 
-function applyConfig(){ uploader.configure(cfg.folder, cfg.site); }
+function applyConfig(){ uploader.configure(cfg.folder, cfg.site, cfg.serviceKey); }
 
 async function doSync(reason){
   if(!uploader.ready()){ lastStatus = { when:new Date(), ok:false, count:0, total:0, msg:'Set folder + site' }; pushStatus(); return; }
@@ -29,6 +29,7 @@ function pushStatus(){ if(win && !win.isDestroyed()) win.webContents.send('statu
 function publicStatus(){
   return {
     folder: cfg.folder, site: cfg.site,
+    hasKey: !!(cfg.serviceKey && cfg.serviceKey.length > 10),
     when: lastStatus.when ? lastStatus.when.toLocaleTimeString() : '—',
     ok: lastStatus.ok, msg: lastStatus.msg
   };
@@ -105,6 +106,7 @@ app.whenReady().then(()=>{
     return publicStatus();
   });
   ipcMain.handle('set-site', (_e, site)=>{ cfg.site = String(site||'').trim(); config.save(cfg); startWatching(); return publicStatus(); });
+  ipcMain.handle('set-key', (_e, k)=>{ cfg.serviceKey = String(k||'').trim(); config.save(cfg); startWatching(); return publicStatus(); });
   ipcMain.handle('set-folder', (_e, folder)=>{ cfg.folder = String(folder||'').trim(); config.save(cfg); startWatching(); return publicStatus(); });
   ipcMain.handle('sync-now', async ()=>{ await doSync('button'); return publicStatus(); });
 });
