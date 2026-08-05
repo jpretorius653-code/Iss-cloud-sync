@@ -43,6 +43,13 @@ function readKindFiles(kind){
     .map(f => ({ name: f.replace(/\.json$/i,''), data: readJsonSafe(path.join(dir, f)) }))
     .filter(x => x.data);
 }
+// Completed tickets are tx-###.json in the ROOT of the shared folder.
+function readTxFiles(){
+  let files; try { files = fs.readdirSync(FOLDER); } catch(_){ return []; }
+  return files.filter(f => /^tx-.*\.json$/i.test(f) && !isSyncArtifact(f))
+    .map(f => ({ name: f.replace(/\.json$/i,''), data: readJsonSafe(path.join(FOLDER, f)) }))
+    .filter(x => x.data);
+}
 function num(v){ const n = parseFloat(v); return isFinite(n) ? n : null; }
 
 function mapTx(tx){
@@ -104,7 +111,7 @@ async function syncNow(){
   if(!ready()) return { ok:false, reason:'Set the shared folder and site first' };
 
   // 1) completed tickets
-  const txRows = readKindFiles('txs').map(x=>mapTx(x.data)).filter(Boolean);
+  const txRows = readTxFiles().map(x=>mapTx(x.data)).filter(Boolean);
   const txRes = await upsert(txRows);
 
   // 2) on-site trucks — needs the service key (read + delete reconcile)
