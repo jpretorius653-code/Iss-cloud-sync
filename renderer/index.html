@@ -43,6 +43,15 @@
   </div>
 
   <div class="card">
+    <label>Service key (for live "trucks on site" — stored only on this PC)</label>
+    <div class="row">
+      <input id="key" type="password" placeholder="paste Supabase service_role key" autocomplete="off" spellcheck="false">
+      <button onclick="saveKey()">Save</button>
+    </div>
+    <div class="muted" id="keystate">Without this, completed tickets still upload; only the live on-site count needs it.</div>
+  </div>
+
+  <div class="card">
     <div class="status"><span class="dot" id="dot"></span><span id="msg">—</span></div>
     <div class="muted">Last sync: <span id="when">—</span> · auto-syncs every 30s</div>
     <div class="row" style="margin-top:10px">
@@ -59,9 +68,13 @@
     $('when').textContent = s.when || '—';
     $('msg').textContent = s.msg || '—';
     $('dot').className = 'dot ' + (s.ok===true?'ok':s.ok===false?'bad':'');
+    const ks=$('keystate');
+    if(ks) ks.textContent = s.hasKey ? 'Service key saved ✓ — live on-site count enabled.'
+      : 'Without this, completed tickets still upload; only the live on-site count needs it.';
   }
   async function pickFolder(){ render(await window.iss.pickFolder()); }
   async function saveSite(){ render(await window.iss.setSite($('site').value)); }
+  async function saveKey(){ const r=await window.iss.setKey($('key').value); $('key').value=''; render(r); }
   async function syncNow(){ $('msg').textContent='Syncing…'; render(await window.iss.syncNow()); }
   window.iss.onStatus(render);
   window.iss.getConfig().then(render);
