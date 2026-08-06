@@ -59,6 +59,8 @@ function mapTx(tx){
   return {
     ext_id: SITE + ':' + String(tx.id), ticket: String(tx.id),
     reg: tx.vehicleReg||null, customer: tx.customer||null, product: tx.product||null,
+    transporter: tx.transporter||null, batch_no: tx.batchNo||null,
+    supplier: tx.supplier||null, destination: tx.destination||null, driver: tx.driver||null,
     action: tx.direction||null, status: 'complete',
     net: num(tx.net), empty_weight: tare,
     time_in: tx.firstWeightTime||null, time_out: tx.secondWeightTime||tx.completedAt||null,
