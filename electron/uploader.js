@@ -51,18 +51,36 @@ function readTxFiles(){
     .filter(x => x.data);
 }
 function num(v){ const n = parseFloat(v); return isFinite(n) ? n : null; }
+// pull a value from the ticket's custom[] array by matching its label
+function cust(tx, re){
+  if(!Array.isArray(tx.custom)) return null;
+  const m = tx.custom.find(c => c && typeof c.label==='string' && re.test(c.label));
+  return m ? (m.value||null) : null;
+}
+// direction -> report wording
+function actionLabel(d){
+  d = String(d||'').toLowerCase();
+  if(d==='receive') return 'Off Loading';
+  if(d==='dispatch' || d==='load') return 'Loading';
+  return d ? d.charAt(0).toUpperCase()+d.slice(1) : null;
+}
 
 function mapTx(tx){
   if(!tx || tx._deleted || !tx.id) return null;
   const fw = num(tx.firstWeight), sw = num(tx.secondWeight);
   const tare = (fw!=null && sw!=null) ? Math.min(fw, sw) : null;
+  const full = (fw!=null && sw!=null) ? Math.max(fw, sw) : (fw!=null?fw:sw);
   return {
     ext_id: SITE + ':' + String(tx.id), ticket: String(tx.id),
     reg: tx.vehicleReg||null, customer: tx.customer||null, product: tx.product||null,
     transporter: tx.transporter||null, batch_no: tx.batchNo||null,
+    dispatch_ticket: tx.dispatchTicketNo||null,
     supplier: tx.supplier||null, destination: tx.destination||null, driver: tx.driver||null,
-    action: tx.direction||null, status: 'complete',
-    net: num(tx.net), empty_weight: tare,
+    order_no: tx.orderId||tx.orderNoManual||null,
+    trailer1: cust(tx,/trailer\s*1/i), trailer2: cust(tx,/trailer\s*2/i), seal_no: cust(tx,/seal/i),
+    bridge: tx.bridgeName||null, operator: tx.operatorName||null,
+    action: actionLabel(tx.direction), status: 'complete',
+    net: num(tx.net), empty_weight: tare, full_weight: full,
     time_in: tx.firstWeightTime||null, time_out: tx.secondWeightTime||tx.completedAt||null,
     site: SITE
   };
@@ -104,7 +122,8 @@ async function upsert(rows){
   for(let i=0;i<rows.length;i+=200){
     const r = await api('POST','transactions?on_conflict=ext_id', rows.slice(i,i+200),
       { 'Prefer':'resolution=merge-duplicates,return=minimal' });
-    if(r.ok) pushed += Math.min(200, rows.length-i); else err = r.reason||('HTTP '+r.status);
+    if(r.ok) pushed += Math.min(200, rows.length-i);
+    else err = (r.body ? String(r.body).replace(/\s+/g,' ').slice(0,180) : (r.reason||('HTTP '+r.status)));
   }
   return err ? { ok:false, reason:err, count:pushed } : { ok:true, count:pushed };
 }
